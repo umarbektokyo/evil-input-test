@@ -3,44 +3,171 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>my evil input</title>
+<title>volume, but you have to pump it</title>
 <style>
-  /* Everything you make goes inside #stage: exactly 800 × 400 pixels. The gallery shows
-     this box (shrunk to fit), so anything outside it won't be seen. */
   html, body { margin: 0; background: #292b47; color: #eceae3; font: 16px/1.5 ui-monospace, Menlo, Consolas, monospace; }
   #stage {
     width: 800px; height: 400px; overflow: hidden; position: relative;
-    display: grid; place-items: center; text-align: center;
-    background: #23243d;
+    background: #23243d; user-select: none; -webkit-user-select: none; cursor: pointer; touch-action: none;
   }
-
-  /* ---- the example below: delete it and build your own ---- */
-  .vol { font-size: 64px; margin: 0; }
-  button { font: inherit; color: inherit; background: #3f4168; border: 0; border-radius: 6px; padding: .6rem 1.2rem; cursor: pointer; }
-  .hint { color: #8d8aa6; font-size: 14px; }
+  svg { display: block; }
+  #handle { transition: transform .12s ease-out; }
+  #handle.down { transform: translateY(62px); transition-duration: .08s; }
+  .wave { transition: opacity .15s; }
+  #hose { transition: stroke .2s; }
+  #stage.popped #hose { stroke: #f5a885; stroke-dasharray: 18 14; }
+  #stage.popped svg { animation: shake .35s; }
+  @keyframes shake { 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-4px, 1px); } 80% { transform: translate(3px, 0); } }
+  #msg { position: absolute; left: 0; right: 0; top: 24px; text-align: center; color: #f5a885; font-size: 20px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #stage.popped #msg { opacity: 1; }
 </style>
 </head>
 <body>
-<div id="stage">
-  <!-- example evil input: volume you have to pump up by hand, and it leaks back down -->
-  <div>
-    <p class="vol"><span id="vol">0</span>%</p>
-    <button id="pump">pump volume</button>
-    <p class="hint">it leaks. keep pumping.</p>
-  </div>
+<div id="stage" tabindex="0" aria-label="volume pump: press and release to pump the volume up">
+  <svg width="800" height="400" viewBox="0 0 800 400" aria-hidden="true">
+    <!-- floor -->
+    <line x1="40" y1="346" x2="760" y2="346" stroke="#3f4168" stroke-width="2"/>
+
+    <!-- the hose, from the pump to the speaker -->
+    <path id="hose" d="M190 322 C 300 392, 420 392, 528 262" fill="none" stroke="#b37385" stroke-width="9" stroke-linecap="round"/>
+
+    <!-- the pump -->
+    <rect x="104" y="332" width="132" height="14" rx="4" fill="#3f4168"/>
+    <g id="handle">
+      <rect x="166" y="96" width="8" height="70" fill="#8d8aa6"/>
+      <rect x="116" y="84" width="108" height="16" rx="8" fill="#f5a885"/>
+    </g>
+    <rect x="148" y="150" width="44" height="186" rx="7" fill="#3f4168" stroke="#545480" stroke-width="2"/>
+    <rect x="142" y="146" width="56" height="10" rx="3" fill="#545480"/>
+    <!-- pressure gauge -->
+    <circle cx="170" cy="290" r="17" fill="#eceae3"/>
+    <circle cx="170" cy="290" r="17" fill="none" stroke="#545480" stroke-width="3"/>
+    <line id="needle" x1="170" y1="290" x2="170" y2="277" stroke="#b37385" stroke-width="3" stroke-linecap="round" transform="rotate(-120)"/>
+    <circle cx="170" cy="290" r="2.5" fill="#23243d"/>
+
+    <!-- the speaker -->
+    <rect x="500" y="186" width="74" height="104" rx="8" fill="#3f4168" stroke="#545480" stroke-width="2"/>
+    <polygon points="572,206 624,174 624,302 572,270" fill="#8d8aa6"/>
+    <path class="wave" d="M644 204 Q 668 238 644 272" fill="none" stroke="#eceae3" stroke-width="5" stroke-linecap="round" opacity="0"/>
+    <path class="wave" d="M670 186 Q 706 238 670 290" fill="none" stroke="#eceae3" stroke-width="5" stroke-linecap="round" opacity="0"/>
+    <path class="wave" d="M696 168 Q 744 238 696 308" fill="none" stroke="#f5a885" stroke-width="5" stroke-linecap="round" opacity="0"/>
+
+    <!-- the number -->
+    <text x="400" y="78" text-anchor="middle" fill="#8d8aa6" font-size="15" font-family="ui-monospace, Menlo, monospace">volume</text>
+    <text id="pct" x="400" y="138" text-anchor="middle" fill="#eceae3" font-size="58" font-family="ui-monospace, Menlo, monospace">0%</text>
+
+    <!-- meter -->
+    <g id="meter"></g>
+
+    <text x="400" y="384" text-anchor="middle" fill="#8d8aa6" font-size="13" font-family="ui-monospace, Menlo, monospace">press and release to pump (space works too). it leaks. don't overdo it.</text>
+    <g id="fx"></g>
+  </svg>
+  <p id="msg">pop. you pumped too hard.</p>
 </div>
 <script>
-  // the example: delete this too
-  let volume = 0;
-  const out = document.getElementById('vol');
-  document.getElementById('pump').addEventListener('click', () => {
-    volume = Math.min(100, volume + 7);
-    out.textContent = Math.round(volume);
-  });
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const stage = document.getElementById('stage');
+  const handle = document.getElementById('handle');
+  const needle = document.getElementById('needle');
+  const pct = document.getElementById('pct');
+  const hose = document.getElementById('hose');
+  const waves = [...document.querySelectorAll('.wave')];
+  const fx = document.getElementById('fx');
+  const meter = document.getElementById('meter');
+
+  const SEGMENTS = 20;
+  const segs = [];
+  for (let i = 0; i < SEGMENTS; i++) {
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', 270 + i * 13); r.setAttribute('y', 160);
+    r.setAttribute('width', 10); r.setAttribute('height', 14); r.setAttribute('rx', 2);
+    meter.appendChild(r); segs.push(r);
+  }
+
+  let volume = 0, down = false, popped = false;
+
+  function render() {
+    const v = Math.round(volume);
+    pct.textContent = v + '%';
+    needle.setAttribute('transform', 'rotate(' + (-120 + volume * 2.4) + ' 170 290)');
+    waves.forEach((w, i) => w.setAttribute('opacity', Math.max(0, Math.min(1, (volume - i * 28) / 28)).toFixed(2)));
+    segs.forEach((s, i) => {
+      const on = volume >= (i + 1) * (100 / SEGMENTS) - 0.01;
+      s.setAttribute('fill', !on ? '#3f4168' : i >= 16 ? '#b37385' : '#f5a885');
+    });
+  }
+
+  // a puff of air travels down the hose
+  function puff() {
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('r', 7); c.setAttribute('fill', '#eceae3');
+    fx.appendChild(c);
+    const len = hose.getTotalLength(), t0 = performance.now();
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / 420);
+      const p = hose.getPointAtLength(len * k);
+      c.setAttribute('cx', p.x); c.setAttribute('cy', p.y);
+      c.setAttribute('opacity', (1 - k * 0.6).toFixed(2));
+      if (k < 1) requestAnimationFrame(step); else c.remove();
+    })(t0);
+  }
+
+  // the leak: drops fall out of the lowest part of the hose
+  function drip() {
+    const c = document.createElementNS(NS, 'circle');
+    const x = 345 + Math.random() * 30;
+    c.setAttribute('r', 3); c.setAttribute('fill', '#b37385'); c.setAttribute('cx', x);
+    fx.appendChild(c);
+    const t0 = performance.now();
+    (function step(t) {
+      const k = Math.min(1, (t - t0) / 600);
+      c.setAttribute('cy', 372 + k * k * 22);
+      c.setAttribute('opacity', (1 - k).toFixed(2));
+      if (k < 1) requestAnimationFrame(step); else c.remove();
+    })(t0);
+  }
+
+  function pop() {
+    popped = true;
+    stage.classList.add('popped');
+    setTimeout(() => { volume = 0; render(); }, 250);
+    setTimeout(() => { stage.classList.remove('popped'); popped = false; }, 1600);
+  }
+
+  function press() {
+    if (popped || down) return;
+    down = true;
+    handle.classList.add('down');
+  }
+  function release() {
+    if (!down) return;
+    down = false;
+    handle.classList.remove('down');
+    if (popped) return;
+    volume = Math.min(100, volume + 6 + Math.random() * 5);
+    puff();
+    render();
+    if (volume >= 100) pop();
+  }
+
+  stage.addEventListener('pointerdown', (e) => { e.preventDefault(); stage.focus(); press(); });
+  window.addEventListener('pointerup', release);
+  window.addEventListener('pointercancel', release);
+  stage.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) press(); } });
+  stage.addEventListener('keyup', (e) => { if (e.code === 'Space' || e.key === 'Enter') release(); });
+
+  // it leaks, and it leaks faster the more you've pumped
   setInterval(() => {
-    volume = Math.max(0, volume - 1);
-    out.textContent = Math.round(volume);
-  }, 120);
+    if (popped || volume <= 0) return;
+    volume = Math.max(0, volume - (0.06 + volume * 0.004));
+    if (Math.random() < volume / 250) drip();
+    render();
+  }, 60);
+
+  render();
+  stage.focus();
+})();
 </script>
 </body>
 </html>

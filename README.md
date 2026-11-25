@@ -1,24 +1,21 @@
 # volume, but you have to pump it
 
-<!-- This README is the front door of your project: the gallery shows its first lines. -->
-
-## what it is
-
-a test project for the evil club input gallery: a volume control you pump by hand, and it leaks back down.
+A volume control with no slider and no buttons: there's a bicycle pump. Press and release it to push air down the hose into the speaker. The hose leaks, so the volume drains back down the moment you stop, and the higher it is, the faster it leaks. Pump past 100% and the hose pops.
 
 ## what input it collects
 
-<text? a volume? a phone number? brightness? a time? and how does it make that miserable?>
+A volume level from 0 to 100%. Getting it to exactly where you want it takes rhythm, patience and a little suffering.
 
 ## screenshot
 
-<!-- drag a screenshot or a gif into this file on github.com to upload it -->
-![screenshot](screenshot.png)
+Open the live link: it's more fun pumping it yourself.
 
 ## live
 
-https://<your-github-name>.github.io/<this-repo>/
+https://umarbektokyo.github.io/evil-input-test/
 
 ## how to run it
 
-open `index.html` in a browser. that's it.
+Open `index.html` in a browser. Click (or tap, or hold space) to pump.
+
+Made as an example for the evil club input gallery.
