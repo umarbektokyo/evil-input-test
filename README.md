@@ -1,6 +1,6 @@
 # volume, but you have to pump it
 
-A volume control with no slider and no buttons: there's a bicycle pump. Press and release it to push air down the hose into the speaker. The hose leaks, so the volume drains back down the moment you stop, and the higher it is, the faster it leaks. Pump past 100% and the hose pops.
+A volume control with no slider and no buttons, just a pump. Press and release to pump the volume up. It leaks, so it drains back down the moment you stop, and the higher it is, the faster it leaks. Pump past 100% and it pops.
 
 ## what input it collects
 
@@ -16,6 +16,6 @@ https://umarbektokyo.github.io/evil-input-test/
 
 ## how to run it
 
-Open `index.html` in a browser. Click (or tap, or hold space) to pump.
+Open `index.html` in a browser. Click, tap or press space to pump.
 
 Made as an example for the evil club input gallery.
